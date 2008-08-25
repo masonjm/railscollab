@@ -7,3 +7,4 @@ config/database.yml
 config/config.yml
 .loadpath
 .project
+files
