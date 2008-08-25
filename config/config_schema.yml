@@ -135,56 +135,62 @@ general:
     default: "local_database"
     comment: ""
     order: 4
+
+  file_upload_path:
+    handler: StringConfigHandler
+    default: "files"
+    comment: "Only used for Filesystem storage. Path is relative to application root."
+    order: 5
   
   default_project_folders:
     handler: TextListConfigHandler
     default: ['images', 'documents', 'other']
     comment: ""
-    order: 5
+    order: 6
   
   default_project_message_categories:
     handler: TextListConfigHandler
     default: ['General', 'Projects', 'Problems']
     comment: ""
-    order: 6
+    order: 7
 
   default_project_message_category:
     handler: StringConfigHandler
     default: General
     comment: ""
-    order: 7
+    order: 8
 
   allow_openid:
     handler: BoolConfigHandler
     default: false
     comment: ""
-    order: 8
+    order: 9
 
   allow_anonymous:
     handler: BoolConfigHandler
     default: false
     comment: ""
-    order: 9
+    order: 10
     
   site_theme:
     handler: ThemeConfigHandler
     default: "default"
     comment: ""
-    order: 10
+    order: 11
   
   # Localisation
   default_language: 
     handler: StringConfigHandler
     default: en-US
     comment: ""
-    order: 11
+    order: 12
 
   # Ferret search
   search_enabled: 
     handler: BoolConfigHandler
     default: true
     comment: ""
-    order: 12
+    order: 13
 
 mailing:
   notification_email_address:

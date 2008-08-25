@@ -50,6 +50,14 @@ class FileRepo < ActiveRecord::Base
 			    file_repo = FileRepo.new(:content => value, :order => 0)
 				file_repo.save!
 				return file_repo.id
+			when 'local_filesystem'
+				id = "#{rand(Time.now.tv_usec)}_#{id}"
+				file_path = get_file_path(id)
+				FileUtils.mkdir_p(File.dirname(file_path))
+				f = open(file_path, 'wb')
+				f.write(value)
+				f.close
+				return id
 		end
 		
 		return nil
@@ -69,6 +77,16 @@ class FileRepo < ActiveRecord::Base
 				file_repo.content = value
 				file_repo.save!
 				return file_repo.id
+			when 'local_filesystem'
+				file_path = get_file_path(id)
+				if File.exists?(file_path)
+					f = open(file_path, 'wb')
+					f.write(value)
+					f.close
+					return id
+				else
+					return nil
+				end
 		end
 		
 		return nil
@@ -95,6 +113,14 @@ class FileRepo < ActiveRecord::Base
    				end
 				file_repo.destroy
 				return true
+			when 'local_filesystem'
+				file_path = get_file_path(id)
+				if File.exists?(file_path)
+					FileUtils.rm(file_path)
+					return true
+				else
+					return false
+				end
 		end
 		
 		return false
@@ -124,6 +150,16 @@ class FileRepo < ActiveRecord::Base
 			      return nil
    				end
 				return file_repo.content
+			when 'local_filesystem'
+				file_path = get_file_path(id)
+				if File.exists?(file_path)
+					f = File.open(file_path, 'rb')
+					content = f.read
+					f.close
+					return content
+				else
+					return nil
+				end
 		end
 		
 		return nil
@@ -152,5 +188,12 @@ class FileRepo < ActiveRecord::Base
 	            end
 	       end
 	   end
+	end
+
+	private
+	
+	def self.get_file_path(id)
+		hash = Digest::SHA1::hexdigest(id)
+		return "#{RAILS_ROOT}/#{AppConfig.file_upload_path}/#{hash[0..0]}/#{hash[1..1]}/#{id}"
 	end
 end

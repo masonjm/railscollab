@@ -26,12 +26,13 @@ class FileStorageConfigHandler < ConfigHandler
 	end
 	
 	def value=(val)
-		@rawValue = val unless !(['amazon_s3', 'local_database'].include?(val))
+		@rawValue = val unless !(['amazon_s3', 'local_database', 'local_filesystem'].include?(val))
 	end
 	
 	def render(name, options)
 		opts = options_for_select({:file_storage_amazon_s3.l => 'amazon_s3', 
-		                           :file_storage_local_database.l => 'local_database'}, self.value)
+		                           :file_storage_local_database.l => 'local_database',
+                                   :file_storage_local_filesystem.l => 'local_filesystem'}, self.value)
 		select_tag name, opts, options
 	end
 end
