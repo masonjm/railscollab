@@ -2,7 +2,7 @@
 RailsCollab
 -----------
 
-Copyright (C) 2007 James S Urquhart (jamesu at gmail.com)
+Copyright (C) 2007 - 2008 James S Urquhart (jamesu at gmail.com)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -54,19 +54,19 @@ class Project < ActiveRecord::Base
 		
 		def late(include_private=true, reload=false)
 			ProjectMilestone.priv_scope(include_private) do
-			  find(:all, :conditions => "due_date < '#{Date.today}' AND completed_on IS NULL")
+			  find(:all, :conditions => ['due_date < ? AND completed_on IS NULL', Date.today])
 			end
 		end
 		
 		def todays(include_private=true, reload=false)
 			ProjectMilestone.priv_scope(include_private) do
-			  find(:all, :conditions => "completed_on IS NULL AND (due_date >= '#{Date.today}' AND due_date < '#{Date.today+1}')")
+			  find(:all, :conditions => ['completed_on IS NULL AND (due_date >= ? AND due_date < ?)', Date.today, Date.today+1])
 			end
 		end
 		
 		def upcoming(include_private=true, reload=false)
 			ProjectMilestone.priv_scope(include_private) do
-			  find(:all, :conditions => "completed_on IS NULL AND due_date >= '#{Date.today+1}'")
+			  find(:all, :conditions => ['completed_on IS NULL AND due_date >= ?', Date.today+1])
 			end
 		end
 		
@@ -116,13 +116,18 @@ class Project < ActiveRecord::Base
 			end
 		end
 	end
-	has_many :project_messages, :dependent => :destroy do
-		def important(include_private = true, reload=false)
-			ProjectMessage.priv_scope(include_private) do
-			  find(:all, :conditions => ['is_important = ?', true])
-			end
-		end
-	end
+  has_many :project_messages, :order => 'created_on DESC', :dependent => :destroy do
+    def important(include_private = true, reload=false)
+      ProjectMessage.priv_scope(include_private) do
+        find(:all, :conditions => ['is_important = ?', true])
+      end
+    end
+    
+    def public(conditions={}, reload=false)
+      @public_project_messages = nil if reload
+      @public_project_messages ||= find(:all, :conditions => ['is_private = ?', false])
+    end
+  end
 	has_many :project_message_categories, :dependent => :destroy
 	
 	has_many :application_logs, :order => 'created_on DESC, id DESC', :dependent => :destroy do

@@ -2,7 +2,7 @@
 RailsCollab
 -----------
 
-Copyright (C) 2007 James S Urquhart (jamesu at gmail.com)
+Copyright (C) 2007 - 2008 James S Urquhart (jamesu at gmail.com)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -162,7 +162,7 @@ private
 
   def obtain_milestone
     begin
-      @milestone = ProjectMilestone.find(params[:id])
+      @milestone = @active_project.project_milestones.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_milestone)
       redirect_back_or_default :controller => 'milestone'

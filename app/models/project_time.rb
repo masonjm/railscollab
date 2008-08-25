@@ -2,7 +2,7 @@
 RailsCollab
 -----------
 
-Copyright (C) 2007 James S Urquhart (jamesu at gmail.com)
+Copyright (C) 2007 - 2008 James S Urquhart (jamesu at gmail.com)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ class ProjectTime < ActiveRecord::Base
 	
 	acts_as_ferret :fields => [:name, :description, :project_id, :is_private, :tags_with_spaces], :store_class_name => true
 	
-	before_create  :process_params
+	before_validation_on_create  :process_params
 	after_create   :process_create
 	before_update  :process_update_params
 	before_destroy :process_destroy
@@ -196,10 +196,7 @@ class ProjectTime < ActiveRecord::Base
 	       list.project_tasks.each do |task|
 	         total = ProjectTime.sum(:hours, :conditions => ['task_list_id = ? AND task_id = ?', list.id, task.id])
 	         if (!total.nil? and total > 0)
-	           extra_conditions = time_conds.clone
-	           extra_conditions[0] += " AND task_list_id = ? AND task_id = ?"
-	           extra_conditions << list.id
-	           extra_conditions << task.id
+	           extra_conditions = time_conds.clone.merge({'task_list_id' => list.id, 'task_id' => task.id})
 	           tasks << {:task => task, :hours => total, :list => ProjectTime.find(:all, :conditions => extra_conditions, :order => time_order)}
 	         end
 	       end

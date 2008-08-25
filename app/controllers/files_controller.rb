@@ -2,7 +2,7 @@
 RailsCollab
 -----------
 
-Copyright (C) 2007 James S Urquhart (jamesu at gmail.com)
+Copyright (C) 2007 - 2008 James S Urquhart (jamesu at gmail.com)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,6 +27,8 @@ class FilesController < ApplicationController
   		 :only => [ :delete_folder, :delete_file, :detatch_from_object ],
   		 :add_flash => { :error => true, :message => :invalid_request.l },
          :redirect_to => { :controller => 'file', :action => 'index' }
+  
+  filter_parameter_logging :file_data
 
   before_filter :process_session, :except => [:thumbnail]
   before_filter :accept_folder_name, :only => [:browse_folder, :edit_folder, :delete_folder]
@@ -40,9 +42,9 @@ class FilesController < ApplicationController
     current_page = params[:page].to_i
     current_page = 0 unless current_page > 0
     
-    file_conditions = @logged_user.member_of_owner? ?
-                      ['project_id = ? AND is_visible = ?', @active_project.id, true] : 
-                      ['project_id = ? AND is_visible = ? AND is_private = ?', @active_project.id, true, false]
+    file_conditions = {'project_id' => @active_project.id, 'is_visible' => true}
+    file_conditions['is_private'] = true unless @logged_user.member_of_owner?
+    
     sort_type = params[:orderBy]
     sort_type = 'created_on' unless ['filename'].include?(params[:orderBy])
     sort_order = 'DESC'
@@ -64,7 +66,7 @@ class FilesController < ApplicationController
   
   def browse_folder
     begin
-      @folder ||= ProjectFolder.find(params[:id])
+      @folder ||= @active_project.project_folders.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_folder)
       redirect_back_or_default :controller => 'files'
@@ -79,9 +81,9 @@ class FilesController < ApplicationController
     current_page = params[:page].to_i
     current_page = 0 unless current_page > 0
     
-    file_conditions = @logged_user.member_of_owner? ?
-                      ["folder_id = ? AND project_id = ? AND is_visible = ?", @folder.id, @active_project.id, true] : 
-                      ["folder_id = ? AND project_id = ? AND is_visible = ? AND is_private = ?",  @folder.id, @active_project.id, true, false]
+    file_conditions = {'folder_id' => @folder.id, 'project_id' => @active_project.id, 'is_visible' => true}
+    file_conditions['is_private'] = true unless @logged_user.member_of_owner?
+    
     sort_type = params[:orderBy]
     sort_type = 'created_on' unless ['filename'].include?(params[:orderBy])
     sort_order = 'DESC'
@@ -129,7 +131,7 @@ class FilesController < ApplicationController
   
   def edit_folder
     begin
-      @folder ||= ProjectFolder.find(params[:id])
+      @folder ||= @active_project.project_folders.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_folder)
       redirect_back_or_default :controller => 'files'
@@ -159,7 +161,7 @@ class FilesController < ApplicationController
   
   def delete_folder
     begin
-      @folder ||= ProjectFolder.find(params[:id])
+      @folder ||= @active_project.project_folders.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_folder)
       redirect_back_or_default :controller => 'files'
@@ -183,7 +185,7 @@ class FilesController < ApplicationController
   
   def file_details
     begin
-      @file ||= ProjectFile.find(params[:id])
+      @file ||= @active_project.project_files.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_file)
       redirect_back_or_default :controller => 'files'
@@ -218,7 +220,7 @@ class FilesController < ApplicationController
   
   def download_file
     begin
-      @file ||= ProjectFile.find(params[:id])
+      @file ||= @active_project.project_files.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_file)
       redirect_back_or_default :controller => 'files'
@@ -248,7 +250,7 @@ class FilesController < ApplicationController
     
     if !content_data.nil?
         if content_data.class == Hash
-           redirect_to content_data[:url]
+           redirect_to content_data[:url], :status => 302
         else
     	   send_data content_data, :type => @file_revision.type_string, :filename => @file.filename, :length => @file_revision.filesize
     	end
@@ -270,12 +272,12 @@ class FilesController < ApplicationController
       when :get
 	    if params[:folder_name]
 		    begin
-		      @folder = ProjectFolder.find(:first, :conditions => ['name = ?', params[:folder_name]])
+		      @folder = @active_project.project_folders.find(:first, :conditions => ['name = ?', params[:folder_name]])
 		    rescue ActiveRecord::RecordNotFound
 		    end
 		elsif params[:folder_id]
 		    begin
-		      @folder = ProjectFolder.find(params[:folder_id])
+		      @folder = @active_project.project_folders.find(params[:folder_id])
 		    rescue ActiveRecord::RecordNotFound
 		    end
 	    end
@@ -315,7 +317,7 @@ class FilesController < ApplicationController
   
   def edit_file
     begin
-      @file = ProjectFile.find(params[:id])
+      @file = @active_project.project_files.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_file)
       redirect_back_or_default :controller => 'files'
@@ -368,7 +370,7 @@ class FilesController < ApplicationController
   
   def delete_file
     begin
-      @file = ProjectFile.find(params[:id])
+      @file = @active_project.project_files.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_file)
       redirect_back_or_default :controller => 'files'
@@ -402,6 +404,8 @@ class FilesController < ApplicationController
   	if data.empty?
   		render :text => 'Not found', :status => 404
   		return
+  	elsif data.class == Hash
+  		redirect_to data[:url], :status => 302
   	end
   	
   	send_data data, :type => 'image/jpg', :disposition => 'inline'
@@ -448,7 +452,7 @@ class FilesController < ApplicationController
      		return
       	elsif attach_attribs[:what] == 'existing_file'
       		begin
-      			existing_file = ProjectFile.find(attach_attribs[:file_id])
+      			existing_file = @active_project.project_files.find(attach_attribs[:file_id])
       		rescue ActiveRecord::RecordNotFound
       			error_status(true, :invalid_file)
      			redirect_back_or_default @attach_object.object_url
@@ -503,7 +507,7 @@ class FilesController < ApplicationController
     end
 
     begin
-       existing_file = ProjectFile.find(params[:id])
+       existing_file = @active_project.project_files.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_file)
       redirect_back_or_default @attach_object.object_url
@@ -523,7 +527,7 @@ protected
     
     if params[:folder_name]
 	    begin
-	      @folder = ProjectFolder.find(:first, :conditions => ['name = ?', params[:folder_name]])
+	      @folder = @active_project.project_folders.find(:first, :conditions => ['name = ?', params[:folder_name]])
 	    rescue ActiveRecord::RecordNotFound
 	      error_status(true, :invalid_folder)
 	      redirect_back_or_default :controller => 'files'
@@ -531,7 +535,7 @@ protected
 	    end
 	elsif params[:folder_id]
 	    begin
-	      @folder = ProjectFolder.find(params[:folder_id])
+	      @folder = @active_project.project_folders.find(params[:folder_id])
 	    rescue ActiveRecord::RecordNotFound
 	      error_status(true, :invalid_folder)
 	      redirect_back_or_default :controller => 'files'

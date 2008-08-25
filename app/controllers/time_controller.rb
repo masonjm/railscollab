@@ -2,7 +2,7 @@
 RailsCollab
 -----------
 
-Copyright (C) 2007 James S Urquhart (jamesu at gmail.com)
+Copyright (C) 2007 - 2008 James S Urquhart (jamesu at gmail.com)
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -34,9 +34,14 @@ class TimeController < ApplicationController
   after_filter  :user_track, :only => [:index, :view, :by_task] 
   
   def index
+    if not @logged_user.has_permission(@active_project, :can_manage_time)
+      error_status(true, :insufficient_permissions)
+      redirect_back_or_default :controller => 'project'
+    end
+    
     @project = @active_project
     
-    @times = ProjectTime.find(:all, :conditions => @time_conditions, :page => {:size => AppConfig.times_per_page, :current => @current_page}, :order => "#{@sort_type} #{@sort_order}")
+    @times = @project.project_times.find(:all, :conditions => @time_conditions, :page => {:size => AppConfig.times_per_page, :current => @current_page}, :order => "#{@sort_type} #{@sort_order}")
     @pagination = []
     @times.page_count.times {|page| @pagination << page+1}
     
@@ -44,6 +49,11 @@ class TimeController < ApplicationController
   end
   
   def by_task
+    if not @logged_user.has_permission(@active_project, :can_manage_time)
+      error_status(true, :insufficient_permissions)
+      redirect_back_or_default :controller => 'project'
+    end
+    
     @project = @active_project
     
     @tasks = ProjectTime.find_by_task_list({:order => "#{@active_project.connection.quote_column_name 'order'} DESC"}, @time_conditions, "#{@sort_type} #{@sort_order}")
@@ -127,7 +137,7 @@ private
 
   def obtain_time
     begin
-      @time = ProjectTime.find(params[:id])
+      @time = @active_project.project_times.find(params[:id])
     rescue ActiveRecord::RecordNotFound
       error_status(true, :invalid_time)
       redirect_back_or_default :controller => 'time'
@@ -141,9 +151,7 @@ private
     @current_page = params[:page].to_i
     @current_page = 0 unless @current_page > 0
     
-    @time_conditions = @logged_user.member_of_owner? ? 
-                      ['project_id = ?', @active_project.id] : 
-                      ['project_id = ? AND is_private = ?', @active_project.id, false]
+    @time_conditions = @logged_user.member_of_owner? ? {} : {'is_private' => false}
     @sort_type = params[:orderBy]
     @sort_type = 'created_on' unless ['done_date', 'hours'].include?(params[:orderBy])
     @sort_order = 'DESC'
